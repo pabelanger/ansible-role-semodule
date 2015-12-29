@@ -1,0 +1,41 @@
+# Copyright 2015 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+---
+- name: Copy type enforcement files.
+  copy:
+    dest: "{{ semodule_file_type_enforcement_dest }}"
+    src: "{{ item }}"
+  register: results
+  with_items: "{{ semodule_te_items }}"
+
+- name: checkmodule
+  shell: "checkmodule -M -m -o {{ item.item|basename|replace('.te', '.mod') }} {{ item.item|basename }}"
+  args:
+    chdir: "{{ semodule_file_type_enforcement_dest }}"
+  when: "{{ item.changed }}"
+  with_items: "{{ results.results }}"
+
+- name: semodule_package
+  shell: "semodule_package -o {{ item.item|basename|replace('.te', '.pp') }} -m {{ item.item|basename|replace('.te', '.mod') }}"
+  args:
+    chdir: "{{ semodule_file_type_enforcement_dest }}"
+  when: "{{ item.changed }}"
+  with_items: "{{ results.results }}"
+
+- name: semodule
+  shell: "semodule -i {{ item.item|basename|replace('.te', '.pp') }}"
+  args:
+    chdir: "{{ semodule_file_type_enforcement_dest }}"
+  when: "{{ item.changed }}"
+  with_items: "{{ results.results }}"
